@@ -35,15 +35,16 @@ var levelStrings = []string{"off", "fatal", "stack", "error", "warn", "info", "d
 func SetLevel(level Level) {
 	defultLogger.SetLevel(level)
 }
-
 func SetLevelString(level string) {
 	defultLogger.SetLevelString(level)
+}
+func SetOutput(writer io.Writer) {
+	defultLogger.SetOutput(writer)
 }
 
 func WithLevel(ctx context.Context, level Level) context.Context {
 	return context.WithValue(ctx, logLevelKey{}, level)
 }
-
 func WithTraceId(ctx context.Context, traceId interface{}) context.Context {
 	var s string
 	switch t := traceId.(type) {
