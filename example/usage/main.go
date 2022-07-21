@@ -10,7 +10,7 @@ func main() {
 	g.SetLevelString("info")
 
 	ctx := context.Background()
-	ctx = g.WithTraceId(ctx, "01244")
+	ctx = g.WithTraceId(ctx, 123131231)
 
 	g.Trace(ctx, 3)
 	g.Debug(ctx, 3)

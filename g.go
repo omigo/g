@@ -90,7 +90,7 @@ var (
 	Tracef = genFormatMethod(defultLogger, Ltrace)
 )
 
-var defultLogger = NewLogger(Linfo, os.Stdout)
+var defultLogger = NewLogger(Ldebug, os.Stdout)
 
 type Logger struct {
 	mutex sync.Mutex
@@ -193,10 +193,13 @@ func (l *Logger) output(ctx context.Context, level Level, format string, msg ...
 	l.Buffer.WriteString(file)
 	l.Buffer.WriteByte(':')
 	l.Buffer.WriteString(strconv.Itoa(line))
-	l.Buffer.WriteByte(whitespace)
 	if format == "" {
-		fmt.Fprint(l.Buffer, msg...)
+		for _, v := range msg {
+			l.Buffer.WriteByte(whitespace)
+			fmt.Fprint(l.Buffer, v)
+		}
 	} else {
+		l.Buffer.WriteByte(whitespace)
 		fmt.Fprintf(l.Buffer, format, msg...)
 	}
 	l.Buffer.WriteByte('\n')
