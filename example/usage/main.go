@@ -16,10 +16,14 @@ func main() {
 	g.Debug(ctx, 3)
 	g.Info(ctx, 3)
 
+	g.Infof(ctx, "%d", g.GetCountAll())
+
 	// if matched, set level debug
 	ctx = g.WithLevel(ctx, g.Ldebug)
 
 	method1(ctx)
+	g.Infof(ctx, "%d", g.GetCountAll())
+	g.Fatal(ctx, 3)
 }
 
 func method1(ctx context.Context) {
@@ -36,5 +40,4 @@ func method2(ctx context.Context) {
 	g.Warn(ctx, 2)
 	g.Error(ctx, 2)
 	g.Stack(ctx, 2)
-	g.Fatal(ctx, 2)
 }

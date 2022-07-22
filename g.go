@@ -20,17 +20,17 @@ func (l Level) String() string {
 }
 
 const (
-	Loff   Level = 0
-	Lfatal       = 1
-	Lstack       = 2
-	Lerror       = 3
-	Lwarn        = 4
-	Linfo        = 5
-	Ldebug       = 6
-	Ltrace       = 7
+	Lstack Level = iota
+	Lfatal
+	Lerror
+	Lwarn
+	Linfo
+	Ldebug
+	Ltrace
+	LevelLength
 )
 
-var levelStrings = []string{"off", "fatal", "stack", "error", "warn", "info", "debug", "trace"}
+var levelStrings = []string{"stack", "fatal", "error", "warn", "info", "debug", "trace"}
 
 func SetLevel(level Level) {
 	defultLogger.SetLevel(level)
@@ -40,6 +40,12 @@ func SetLevelString(level string) {
 }
 func SetOutput(writer io.Writer) {
 	defultLogger.SetOutput(writer)
+}
+func GetCount(level Level) uint64 {
+	return defultLogger.GetCount(level)
+}
+func GetCountAll() [LevelLength]uint64 {
+	return defultLogger.GetCountAll()
 }
 
 func WithLevel(ctx context.Context, level Level) context.Context {
@@ -93,10 +99,11 @@ var (
 var defultLogger = NewLogger(Ldebug, os.Stdout)
 
 type Logger struct {
-	mutex sync.Mutex
+	mutex sync.RWMutex
 
 	Level  Level
 	Buffer *bufio.Writer
+	count  [LevelLength]uint64
 
 	WithLevel   func(ctx context.Context, level Level) context.Context
 	WithTraceId func(ctx context.Context, traceId interface{}) context.Context
@@ -105,9 +112,19 @@ type Logger struct {
 	Fatalf, Stackf, Errorf, Warnf, Infof, Debugf, Tracef func(ctx context.Context, format string, msg ...interface{})
 }
 
+func (l *Logger) GetCount(level Level) uint64 {
+	l.mutex.RLock()
+	defer l.mutex.RUnlock()
+	return l.count[level]
+}
+func (l *Logger) GetCountAll() [LevelLength]uint64 {
+	l.mutex.RLock()
+	defer l.mutex.RUnlock()
+	return l.count
+}
+
 func NewLogger(level Level, writer io.Writer) *Logger {
 	newLogger := &Logger{
-		mutex:  sync.Mutex{},
 		Level:  level,
 		Buffer: bufio.NewWriter(writer),
 	}
@@ -212,6 +229,7 @@ func (l *Logger) output(ctx context.Context, level Level, format string, msg ...
 	}
 
 	l.Buffer.Flush()
+	l.count[level]++
 	l.mutex.Unlock()
 
 	if level == Lfatal {
