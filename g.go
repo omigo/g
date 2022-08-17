@@ -27,43 +27,43 @@ const (
 
 var levelStrings = []string{"stack", "fatal", "error", "warn", "info", "debug", "trace"}
 
-func IsEnabled(level Level) bool       { return defultLogger.IsEnabled(level) }
-func GetLevel() Level                  { return defultLogger.GetLevel() }
-func SetLevel(level Level)             { defultLogger.SetLevel(level) }
-func SetLevelString(level string)      { defultLogger.SetLevelString(level) }
-func SetOutput(writer io.Writer)       { defultLogger.SetOutput(writer) }
-func GetCount(level Level) uint64      { return defultLogger.GetCount(level) }
-func GetCountAll() [LevelLength]uint64 { return defultLogger.GetCountAll() }
+func IsEnabled(level Level) bool       { return defaultLogger.IsEnabled(level) }
+func GetLevel() Level                  { return defaultLogger.GetLevel() }
+func SetLevel(level Level)             { defaultLogger.SetLevel(level) }
+func SetLevelString(level string)      { defaultLogger.SetLevelString(level) }
+func SetOutput(writer io.Writer)       { defaultLogger.SetOutput(writer) }
+func GetCount(level Level) uint64      { return defaultLogger.GetCount(level) }
+func GetCountAll() [LevelLength]uint64 { return defaultLogger.GetCountAll() }
 
 func WithLevel(ctx context.Context, level Level) context.Context {
 	return context.WithValue(ctx, logLevelKey{}, level)
 }
 
 var (
-	Fatal = logout(defultLogger, Lfatal)
-	Stack = logout(defultLogger, Lstack)
-	Error = logout(defultLogger, Lerror)
-	Warn  = logout(defultLogger, Lwarn)
-	Info  = logout(defultLogger, Linfo)
-	Debug = logout(defultLogger, Ldebug)
-	Trace = logout(defultLogger, Ltrace)
+	Fatal = logout(defaultLogger, Lfatal)
+	Stack = logout(defaultLogger, Lstack)
+	Error = logout(defaultLogger, Lerror)
+	Warn  = logout(defaultLogger, Lwarn)
+	Info  = logout(defaultLogger, Linfo)
+	Debug = logout(defaultLogger, Ldebug)
+	Trace = logout(defaultLogger, Ltrace)
+	Cost  = cost(defaultLogger, Linfo)
 
-	Fatalf = logoutf(defultLogger, Lfatal)
-	Stackf = logoutf(defultLogger, Lstack)
-	Errorf = logoutf(defultLogger, Lerror)
-	Warnf  = logoutf(defultLogger, Lwarn)
-	Infof  = logoutf(defultLogger, Linfo)
-	Debugf = logoutf(defultLogger, Ldebug)
-	Tracef = logoutf(defultLogger, Ltrace)
+	Fatalf = logoutf(defaultLogger, Lfatal)
+	Stackf = logoutf(defaultLogger, Lstack)
+	Errorf = logoutf(defaultLogger, Lerror)
+	Warnf  = logoutf(defaultLogger, Lwarn)
+	Infof  = logoutf(defaultLogger, Linfo)
+	Debugf = logoutf(defaultLogger, Ldebug)
+	Tracef = logoutf(defaultLogger, Ltrace)
+	Costf  = costf(defaultLogger, Linfo)
 )
 
-var defultLogger = NewLogger(Ldebug, os.Stdout)
+var defaultLogger = NewLogger(Ldebug, os.Stdout)
 
 func WithTraceId(ctx context.Context, traceId interface{}) context.Context {
 	var s string
 	switch traceId.(type) {
-	case string:
-		s = traceId.(string)
 	case uint64:
 		s = strconv.FormatUint(traceId.(uint64), 10)
 	case uint32:
@@ -74,6 +74,8 @@ func WithTraceId(ctx context.Context, traceId interface{}) context.Context {
 		s = strconv.Itoa(traceId.(int))
 	case int32:
 		s = strconv.FormatInt(int64(traceId.(int32)), 10)
+	case string:
+		s = traceId.(string)
 	default:
 		s = fmt.Sprint(traceId)
 	}

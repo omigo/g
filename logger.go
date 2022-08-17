@@ -25,6 +25,9 @@ type Logger struct {
 
 	Fatal, Stack, Error, Warn, Info, Debug, Trace        func(ctx context.Context, msg ...interface{})
 	Fatalf, Stackf, Errorf, Warnf, Infof, Debugf, Tracef func(ctx context.Context, format string, msg ...interface{})
+
+	Cost  func(ctx context.Context, msg ...interface{}) func()
+	Costf func(ctx context.Context, format string, msg ...interface{}) func()
 }
 
 func (l *Logger) GetCount(level Level) uint64 {
@@ -54,6 +57,28 @@ func logoutf(logger *Logger, level Level) func(ctx context.Context, format strin
 	}
 }
 
+func cost(logger *Logger, level Level) func(ctx context.Context, msg ...interface{}) func() {
+	return func(ctx context.Context, msg ...interface{}) func() {
+		logger.output(ctx, level, "%v start...", msg...)
+		start := time.Now()
+		return func() {
+			logger.output(ctx, level, "%v cost "+
+				time.Now().Sub(start).Truncate(time.Millisecond).String(), msg...)
+		}
+	}
+}
+
+func costf(logger *Logger, level Level) func(ctx context.Context, format string, msg ...interface{}) func() {
+	return func(ctx context.Context, format string, msg ...interface{}) func() {
+		logger.output(ctx, level, format+" start...", msg...)
+		start := time.Now()
+		return func() {
+			logger.output(ctx, level, format+" cost "+
+				time.Now().Sub(start).Truncate(time.Millisecond).String(), msg...)
+		}
+	}
+}
+
 func NewLogger(level Level, writer io.Writer) *Logger {
 	newLogger := &Logger{
 		Level:  level,
@@ -70,6 +95,7 @@ func NewLogger(level Level, writer io.Writer) *Logger {
 	newLogger.Info = logout(newLogger, Linfo)
 	newLogger.Debug = logout(newLogger, Ldebug)
 	newLogger.Trace = logout(newLogger, Ltrace)
+	newLogger.Cost = cost(newLogger, Linfo)
 
 	newLogger.Fatalf = logoutf(newLogger, Lfatal)
 	newLogger.Stackf = logoutf(newLogger, Lstack)
@@ -78,6 +104,7 @@ func NewLogger(level Level, writer io.Writer) *Logger {
 	newLogger.Infof = logoutf(newLogger, Linfo)
 	newLogger.Debugf = logoutf(newLogger, Ldebug)
 	newLogger.Tracef = logoutf(newLogger, Ltrace)
+	newLogger.Costf = costf(newLogger, Linfo)
 
 	return newLogger
 }

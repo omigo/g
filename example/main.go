@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/omigo/g"
 )
@@ -33,6 +34,7 @@ func main() {
 }
 
 func method1(ctx context.Context) {
+	defer g.Cost(ctx, "method1")()
 	g.Trace(ctx, 1)
 	g.Debug(ctx, 1)
 	if g.IsEnabled(g.Linfo) {
@@ -42,6 +44,7 @@ func method1(ctx context.Context) {
 }
 
 func method2(ctx context.Context) {
+	defer g.Costf(ctx, "method%d", 2)()
 	g.Trace(ctx, 2)
 	g.Debug(ctx, 2)
 	g.Info(ctx, 2)
@@ -53,4 +56,5 @@ func method2(ctx context.Context) {
 		log.Error(ctx, "error enabled")
 	}
 	log.Stack(ctx, 2)
+	time.Sleep(12345 * time.Microsecond)
 }
