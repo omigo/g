@@ -109,10 +109,8 @@ func NewLogger(level Level, writer io.Writer) *Logger {
 	return newLogger
 }
 
-func (l *Logger) IsEnabled(level Level) bool {
-	l.mutex.RLock()
-	defer l.mutex.RUnlock()
-	return l.Level >= level
+func (l *Logger) IsEnabled(ctx context.Context, level Level) bool {
+	return l.check(ctx, level)
 }
 
 func (l *Logger) GetLevel() Level {

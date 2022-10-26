@@ -27,13 +27,13 @@ const (
 
 var levelStrings = []string{"stack", "fatal", "error", "warn", "info", "debug", "trace"}
 
-func IsEnabled(level Level) bool       { return defaultLogger.IsEnabled(level) }
-func GetLevel() Level                  { return defaultLogger.GetLevel() }
-func SetLevel(level Level)             { defaultLogger.SetLevel(level) }
-func SetLevelString(level string)      { defaultLogger.SetLevelString(level) }
-func SetOutput(writer io.Writer)       { defaultLogger.SetOutput(writer) }
-func GetCount(level Level) uint64      { return defaultLogger.GetCount(level) }
-func GetCountAll() [LevelLength]uint64 { return defaultLogger.GetCountAll() }
+func GetLevel() Level                                 { return defaultLogger.GetLevel() }
+func SetLevel(level Level)                            { defaultLogger.SetLevel(level) }
+func SetLevelString(level string)                     { defaultLogger.SetLevelString(level) }
+func SetOutput(writer io.Writer)                      { defaultLogger.SetOutput(writer) }
+func GetCount(level Level) uint64                     { return defaultLogger.GetCount(level) }
+func GetCountAll() [LevelLength]uint64                { return defaultLogger.GetCountAll() }
+func IsEnabled(ctx context.Context, level Level) bool { return defaultLogger.IsEnabled(ctx, level) }
 
 func WithLevel(ctx context.Context, level Level) context.Context {
 	return context.WithValue(ctx, logLevelKey{}, level)
