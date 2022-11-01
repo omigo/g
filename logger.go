@@ -245,7 +245,7 @@ func writeValue(v interface{}, l *Logger) {
 		l.Buffer.WriteString(vv.String())
 	default:
 		switch reflect.TypeOf(v).Kind() {
-		case reflect.Array, reflect.Map, reflect.Slice, reflect.Struct:
+		case reflect.Array, reflect.Map, reflect.Slice, reflect.Struct, reflect.Pointer:
 			if js, err := json.Marshal(v); err != nil {
 				fmt.Fprint(l.Buffer, v)
 			} else {
