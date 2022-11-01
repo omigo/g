@@ -3,9 +3,11 @@ package g
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -181,7 +183,7 @@ func (l *Logger) output(ctx context.Context, level Level, format string, msg ...
 	if format == "" {
 		for _, v := range msg {
 			l.Buffer.WriteByte(whitespace)
-			fmt.Fprint(l.Buffer, v)
+			writeValue(v, l)
 		}
 	} else {
 		l.Buffer.WriteByte(whitespace)
@@ -202,6 +204,53 @@ func (l *Logger) output(ctx context.Context, level Level, format string, msg ...
 
 	if level == Lfatal {
 		os.Exit(127)
+	}
+}
+
+func writeValue(v interface{}, l *Logger) {
+	switch vv := v.(type) {
+	case []byte:
+		l.Buffer.Write(vv)
+	case string:
+		l.Buffer.WriteString(vv)
+	case int:
+		l.Buffer.WriteString(strconv.Itoa(vv))
+	case int8:
+		l.Buffer.WriteString(strconv.FormatInt(int64(vv), 10))
+	case int16:
+		l.Buffer.WriteString(strconv.FormatInt(int64(vv), 10))
+	case int32:
+		l.Buffer.WriteString(strconv.FormatInt(int64(vv), 10))
+	case int64:
+		l.Buffer.WriteString(strconv.FormatInt(vv, 10))
+	case uint:
+		l.Buffer.WriteString(strconv.FormatUint(uint64(vv), 10))
+	case uint8:
+		l.Buffer.WriteString(strconv.FormatUint(uint64(vv), 10))
+	case uint16:
+		l.Buffer.WriteString(strconv.FormatUint(uint64(vv), 10))
+	case uint32:
+		l.Buffer.WriteString(strconv.FormatUint(uint64(vv), 10))
+	case uint64:
+		l.Buffer.WriteString(strconv.FormatUint(vv, 10))
+	case bool:
+		l.Buffer.WriteString(strconv.FormatBool(vv))
+	case float32:
+		l.Buffer.WriteString(strconv.FormatFloat(float64(vv), 'g', 3, 64))
+	case float64:
+		l.Buffer.WriteString(strconv.FormatFloat(vv, 'g', 3, 64))
+	default:
+		switch reflect.TypeOf(v).Kind() {
+		case reflect.Pointer, reflect.Uintptr, reflect.Array, reflect.Chan, reflect.Func, reflect.Interface,
+			reflect.Map, reflect.Slice, reflect.Struct, reflect.UnsafePointer:
+			if js, err := json.Marshal(v); err != nil {
+				fmt.Fprint(l.Buffer, v)
+			} else {
+				l.Buffer.Write(js)
+			}
+		default:
+			fmt.Fprint(l.Buffer, v)
+		}
 	}
 }
 
