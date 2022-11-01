@@ -209,6 +209,8 @@ func (l *Logger) output(ctx context.Context, level Level, format string, msg ...
 
 func writeValue(v interface{}, l *Logger) {
 	switch vv := v.(type) {
+	case error:
+		l.Buffer.WriteString(vv.Error())
 	case []byte:
 		l.Buffer.Write(vv)
 	case string:
@@ -239,10 +241,11 @@ func writeValue(v interface{}, l *Logger) {
 		l.Buffer.WriteString(strconv.FormatFloat(float64(vv), 'g', 3, 64))
 	case float64:
 		l.Buffer.WriteString(strconv.FormatFloat(vv, 'g', 3, 64))
+	case interface{ String() string }:
+		l.Buffer.WriteString(vv.String())
 	default:
 		switch reflect.TypeOf(v).Kind() {
-		case reflect.Pointer, reflect.Uintptr, reflect.Array, reflect.Chan, reflect.Func, reflect.Interface,
-			reflect.Map, reflect.Slice, reflect.Struct, reflect.UnsafePointer:
+		case reflect.Array, reflect.Map, reflect.Slice, reflect.Struct:
 			if js, err := json.Marshal(v); err != nil {
 				fmt.Fprint(l.Buffer, v)
 			} else {
