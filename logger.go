@@ -208,6 +208,11 @@ func (l *Logger) output(ctx context.Context, level Level, format string, msg ...
 }
 
 func writeValue(v interface{}, l *Logger) {
+	if v == nil {
+		l.Buffer.WriteString("nil")
+		return
+	}
+
 	switch vv := v.(type) {
 	case error:
 		l.Buffer.WriteString(vv.Error())
