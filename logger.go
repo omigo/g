@@ -61,11 +61,12 @@ func logoutf(logger *Logger, level Level) func(ctx context.Context, format strin
 
 func cost(logger *Logger, level Level) func(ctx context.Context, msg ...interface{}) func() {
 	return func(ctx context.Context, msg ...interface{}) func() {
-		logger.output(ctx, level, "%v start...", msg...)
+		in := append(msg, "start...")
+		logger.output(ctx, level, "", in...)
 		start := time.Now()
 		return func() {
-			logger.output(ctx, level, "%v cost "+
-				time.Now().Sub(start).Truncate(time.Millisecond).String(), msg...)
+			out := append(msg, "cost", time.Since(start).Truncate(time.Millisecond).String())
+			logger.output(ctx, level, "", out...)
 		}
 	}
 }
@@ -76,7 +77,7 @@ func costf(logger *Logger, level Level) func(ctx context.Context, format string,
 		start := time.Now()
 		return func() {
 			logger.output(ctx, level, format+" cost "+
-				time.Now().Sub(start).Truncate(time.Millisecond).String(), msg...)
+				time.Since(start).Truncate(time.Millisecond).String(), msg...)
 		}
 	}
 }
@@ -251,6 +252,11 @@ func writeValue(v interface{}, l *Logger) {
 	default:
 		switch reflect.TypeOf(v).Kind() {
 		case reflect.Array, reflect.Map, reflect.Slice, reflect.Struct, reflect.Pointer:
+			// 再次判断，降低并发误用时造成的panic
+			if v == nil {
+				l.Buffer.WriteString("nil")
+				return
+			}
 			if js, err := json.Marshal(v); err != nil {
 				fmt.Fprint(l.Buffer, v)
 			} else {

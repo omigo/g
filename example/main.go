@@ -41,7 +41,7 @@ func main() {
 }
 
 func method1(ctx context.Context) {
-	defer g.Cost(ctx, "method1")()
+	defer g.Cost(ctx, "method1", "another")()
 	g.Trace(ctx, 1)
 	g.Debug(ctx, 1)
 	if g.IsEnabled(ctx, g.Linfo) {
