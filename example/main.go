@@ -17,7 +17,7 @@ func main() {
 	g.SetLevelString("info")
 
 	ctx := context.Background()
-	ctx = g.WithTraceId(ctx, 123131231)
+	ctx = g.WithTraceId(ctx)
 
 	g.Trace(ctx, g.GetLevel())
 
@@ -34,6 +34,7 @@ func main() {
 
 	// if matched, set level debug
 	ctx = g.WithLevel(ctx, g.Ldebug)
+	ctx = g.SetTraceId(ctx, 3)
 
 	method1(ctx)
 	g.Infof(ctx, "%d", g.GetCountAll())

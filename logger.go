@@ -23,7 +23,8 @@ type Logger struct {
 	count  [LevelLength]uint64
 
 	WithLevel   func(ctx context.Context, level Level) context.Context
-	WithTraceId func(ctx context.Context, traceId interface{}) context.Context
+	WithTraceId func(ctx context.Context) context.Context
+	SetTraceId  func(ctx context.Context, traceId interface{}) context.Context
 
 	Fatal, Stack, Error, Warn, Info, Debug, Trace        func(ctx context.Context, msg ...interface{})
 	Fatalf, Stackf, Errorf, Warnf, Infof, Debugf, Tracef func(ctx context.Context, format string, msg ...interface{})
@@ -89,6 +90,7 @@ func NewLogger(level Level, writer io.Writer) *Logger {
 
 	newLogger.WithLevel = WithLevel
 	newLogger.WithTraceId = WithTraceId
+	newLogger.SetTraceId = SetTraceId
 
 	newLogger.Fatal = logout(newLogger, Lfatal)
 	newLogger.Stack = logout(newLogger, Lstack)
@@ -268,6 +270,7 @@ func getTraceId(ctx context.Context) string {
 			return traceId
 		}
 	}
+
 	return "-"
 }
 

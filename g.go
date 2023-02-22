@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"sync/atomic"
 )
 
 type Level int
@@ -61,7 +62,14 @@ var (
 
 var defaultLogger = NewLogger(Ldebug, os.Stdout)
 
-func WithTraceId(ctx context.Context, traceId interface{}) context.Context {
+var defaultTraceId uint64
+
+func WithTraceId(ctx context.Context) context.Context {
+	id := atomic.AddUint64(&defaultTraceId, 1)
+	return context.WithValue(ctx, traceIdKey{}, strconv.FormatUint(id, 10))
+}
+
+func SetTraceId(ctx context.Context, traceId interface{}) context.Context {
 	var s string
 	switch traceId.(type) {
 	case uint64:
