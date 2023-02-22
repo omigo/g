@@ -42,7 +42,7 @@ func main() {
 }
 
 func method1(ctx context.Context) {
-	defer g.Cost(ctx, "method1")()
+	defer g.Cost(ctx, "method1", "enable test")()
 	g.Trace(ctx, 1)
 	g.Debug(ctx, 1)
 	if g.IsEnabled(ctx, g.Linfo) {
@@ -52,7 +52,7 @@ func method1(ctx context.Context) {
 }
 
 func method2(ctx context.Context) {
-	defer g.Costf(ctx, "method%d", 2)()
+	defer g.Costf(ctx, "method%d %s", 2, "stack test")()
 	g.Trace(ctx, 2)
 	g.Debug(ctx, 2)
 	g.Info(ctx, 2)

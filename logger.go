@@ -66,8 +66,8 @@ func cost(logger *Logger, level Level) func(ctx context.Context, msg ...interfac
 		logger.output(ctx, level, "", s...)
 		start := time.Now()
 		return func() {
-			e = append(msg, "cost", time.Since(start).Truncate(time.Millisecond).String())
-			logger.output(ctx, level, "", msg...)
+			e := append(msg, "cost", time.Since(start).Truncate(time.Millisecond).String())
+			logger.output(ctx, level, "", e...)
 		}
 	}
 }
@@ -77,8 +77,7 @@ func costf(logger *Logger, level Level) func(ctx context.Context, format string,
 		logger.output(ctx, level, format+" start...", msg...)
 		start := time.Now()
 		return func() {
-			logger.output(ctx, level, format+" cost "+
-				time.Now().Sub(start).Truncate(time.Millisecond).String(), msg...)
+			logger.output(ctx, level, format+" cost "+time.Since(start).Truncate(time.Millisecond).String(), msg...)
 		}
 	}
 }
