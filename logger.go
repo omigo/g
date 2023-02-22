@@ -62,11 +62,12 @@ func logoutf(logger *Logger, level Level) func(ctx context.Context, format strin
 
 func cost(logger *Logger, level Level) func(ctx context.Context, msg ...interface{}) func() {
 	return func(ctx context.Context, msg ...interface{}) func() {
-		logger.output(ctx, level, "%v start...", msg...)
+		s := append(msg, "start...")
+		logger.output(ctx, level, "", s...)
 		start := time.Now()
 		return func() {
-			logger.output(ctx, level, "%v cost "+
-				time.Now().Sub(start).Truncate(time.Millisecond).String(), msg...)
+			e = append(msg, "cost", time.Since(start).Truncate(time.Millisecond).String())
+			logger.output(ctx, level, "", msg...)
 		}
 	}
 }
