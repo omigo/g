@@ -130,7 +130,7 @@ func (l *Logger) SetLevel(level Level) {
 }
 
 func (l *Logger) SetLevelString(level string) {
-	level = strings.ToLower(level)
+	level = strings.ToUpper(level)
 	var lvl = -1
 	for i, v := range levelStrings {
 		if v == level {
@@ -165,7 +165,11 @@ func (l *Logger) check(ctx context.Context, level Level) bool {
 	return l.Level >= level
 }
 
-const whitespace = ' '
+const (
+	whitespace   = ' '
+	leftBracket  = '['
+	rightBracket = ']'
+)
 
 func (l *Logger) output(ctx context.Context, level Level, format string, msg ...interface{}) {
 	ts := time.Now().Format("2006-01-02 15:04:05.000")
@@ -173,15 +177,35 @@ func (l *Logger) output(ctx context.Context, level Level, format string, msg ...
 	file, line := getFileLine()
 
 	l.mutex.Lock()
-	l.Buffer.WriteString(ts)
+	defer l.mutex.Unlock()
+
+	// 需要优化，先拼接好，然后再写入 buffer，还可以使用 sync.Pool
+	l.Buffer.WriteByte(leftBracket)
+	l.Buffer.WriteString(ts[:19])
 	l.Buffer.WriteByte(whitespace)
-	l.Buffer.WriteString(traceId)
+	l.Buffer.WriteString(ts[20:])
+	l.Buffer.WriteByte(rightBracket)
+
 	l.Buffer.WriteByte(whitespace)
-	l.Buffer.WriteString(level.String())
-	l.Buffer.WriteByte(whitespace)
+
+	l.Buffer.WriteByte(leftBracket)
 	l.Buffer.WriteString(file)
 	l.Buffer.WriteByte(':')
 	l.Buffer.WriteString(strconv.Itoa(line))
+	l.Buffer.WriteByte(rightBracket)
+
+	l.Buffer.WriteByte(whitespace)
+
+	l.Buffer.WriteByte(leftBracket)
+	l.Buffer.WriteString(level.String())
+	l.Buffer.WriteByte(rightBracket)
+
+	l.Buffer.WriteByte(whitespace)
+
+	l.Buffer.WriteByte(leftBracket)
+	l.Buffer.WriteString(traceId)
+	l.Buffer.WriteByte(rightBracket)
+
 	if format == "" {
 		for _, v := range msg {
 			l.Buffer.WriteByte(whitespace)
@@ -202,7 +226,6 @@ func (l *Logger) output(ctx context.Context, level Level, format string, msg ...
 
 	l.Buffer.Flush()
 	l.count[level]++
-	l.mutex.Unlock()
 
 	if level == Lfatal {
 		os.Exit(127)

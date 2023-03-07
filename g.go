@@ -26,7 +26,7 @@ const (
 	LevelLength
 )
 
-var levelStrings = []string{"stack", "fatal", "error", "warn", "info", "debug", "trace"}
+var levelStrings = []string{"STACK", "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE"}
 
 func GetLevel() Level                                 { return defaultLogger.GetLevel() }
 func SetLevel(level Level)                            { defaultLogger.SetLevel(level) }

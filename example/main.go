@@ -14,7 +14,7 @@ type TestStruct struct {
 }
 
 func main() {
-	g.SetLevelString("info")
+	g.SetLevelString("trace")
 
 	ctx := context.Background()
 	ctx = g.WithTraceId(ctx)
