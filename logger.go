@@ -2,6 +2,7 @@ package g
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -23,7 +24,7 @@ type Logger struct {
 	count  [LevelLength]uint64
 
 	WithLevel   func(ctx context.Context, level Level) context.Context
-	WithTraceId func(ctx context.Context) context.Context
+	WithTraceId func(ctx ...context.Context) context.Context
 	SetTraceId  func(ctx context.Context, traceId interface{}) context.Context
 
 	Fatal, Stack, Error, Warn, Info, Debug, Trace        func(ctx context.Context, msg ...interface{})
@@ -47,7 +48,7 @@ func (l *Logger) GetCountAll() [LevelLength]uint64 {
 func logout(logger *Logger, level Level) func(ctx context.Context, msg ...interface{}) {
 	return func(ctx context.Context, msg ...interface{}) {
 		if logger.check(ctx, level) {
-			logger.output(ctx, level, "", msg...)
+			logger.output(ctx, level, "", msg)
 		}
 	}
 }
@@ -55,7 +56,7 @@ func logout(logger *Logger, level Level) func(ctx context.Context, msg ...interf
 func logoutf(logger *Logger, level Level) func(ctx context.Context, format string, msg ...interface{}) {
 	return func(ctx context.Context, format string, msg ...interface{}) {
 		if logger.check(ctx, level) {
-			logger.output(ctx, level, format, msg...)
+			logger.output(ctx, level, format, msg)
 		}
 	}
 }
@@ -63,21 +64,21 @@ func logoutf(logger *Logger, level Level) func(ctx context.Context, format strin
 func cost(logger *Logger, level Level) func(ctx context.Context, msg ...interface{}) func() {
 	return func(ctx context.Context, msg ...interface{}) func() {
 		s := append(msg, "start...")
-		logger.output(ctx, level, "", s...)
+		logger.output(ctx, level, "", s)
 		start := time.Now()
 		return func() {
 			e := append(msg, "cost", time.Since(start).Truncate(time.Millisecond).String())
-			logger.output(ctx, level, "", e...)
+			logger.output(ctx, level, "", e)
 		}
 	}
 }
 
 func costf(logger *Logger, level Level) func(ctx context.Context, format string, msg ...interface{}) func() {
 	return func(ctx context.Context, format string, msg ...interface{}) func() {
-		logger.output(ctx, level, format+" start...", msg...)
+		logger.output(ctx, level, format+" start...", msg)
 		start := time.Now()
 		return func() {
-			logger.output(ctx, level, format+" cost "+time.Since(start).Truncate(time.Millisecond).String(), msg...)
+			logger.output(ctx, level, format+" cost "+time.Since(start).Truncate(time.Millisecond).String(), msg)
 		}
 	}
 }
@@ -165,124 +166,131 @@ func (l *Logger) check(ctx context.Context, level Level) bool {
 	return l.Level >= level
 }
 
+func (l *Logger) output(ctx context.Context, level Level, format string, msg []interface{}) {
+	buf := bytes.NewBuffer(make([]byte, 1024))
+	write(ctx, buf, level, format, msg)
+
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+
+	io.Copy(l.Buffer, buf)
+	l.Buffer.Flush()
+
+	l.count[level]++
+
+	if level == Lfatal {
+		os.Exit(99)
+	}
+}
+
 const (
 	whitespace   = ' '
 	leftBracket  = '['
 	rightBracket = ']'
 )
 
-func (l *Logger) output(ctx context.Context, level Level, format string, msg ...interface{}) {
+func write(ctx context.Context, buf *bytes.Buffer, level Level, format string, msg []interface{}) {
 	ts := time.Now().Format("2006-01-02 15:04:05.000")
+	buf.WriteByte(leftBracket)
+	buf.WriteString(ts[:19])
+	buf.WriteByte(whitespace)
+	buf.WriteString(ts[20:])
+	buf.WriteByte(rightBracket)
+
+	buf.WriteByte(whitespace)
+
+	file, line, method := getFileLineMethod()
+	buf.WriteByte(leftBracket)
+	buf.WriteString(file)
+	buf.WriteByte(':')
+	buf.WriteString(method)
+	buf.WriteByte(':')
+	buf.WriteString(strconv.Itoa(line))
+	buf.WriteByte(rightBracket)
+
+	buf.WriteByte(whitespace)
+
+	buf.WriteByte(leftBracket)
+	buf.WriteString(level.String())
+	buf.WriteByte(rightBracket)
+
+	buf.WriteByte(whitespace)
+
 	traceId := getTraceId(ctx)
-	file, line := getFileLine()
-
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
-
-	// 需要优化，先拼接好，然后再写入 buffer，还可以使用 sync.Pool
-	l.Buffer.WriteByte(leftBracket)
-	l.Buffer.WriteString(ts[:19])
-	l.Buffer.WriteByte(whitespace)
-	l.Buffer.WriteString(ts[20:])
-	l.Buffer.WriteByte(rightBracket)
-
-	l.Buffer.WriteByte(whitespace)
-
-	l.Buffer.WriteByte(leftBracket)
-	l.Buffer.WriteString(file)
-	l.Buffer.WriteByte(':')
-	l.Buffer.WriteString(strconv.Itoa(line))
-	l.Buffer.WriteByte(rightBracket)
-
-	l.Buffer.WriteByte(whitespace)
-
-	l.Buffer.WriteByte(leftBracket)
-	l.Buffer.WriteString(level.String())
-	l.Buffer.WriteByte(rightBracket)
-
-	l.Buffer.WriteByte(whitespace)
-
-	l.Buffer.WriteByte(leftBracket)
-	l.Buffer.WriteString(traceId)
-	l.Buffer.WriteByte(rightBracket)
+	buf.WriteByte(leftBracket)
+	buf.WriteString(traceId)
+	buf.WriteByte(rightBracket)
 
 	if format == "" {
 		for _, v := range msg {
-			l.Buffer.WriteByte(whitespace)
-			writeValue(v, l)
+			buf.WriteByte(whitespace)
+			writeValue(buf, v)
 		}
 	} else {
-		l.Buffer.WriteByte(whitespace)
-		fmt.Fprintf(l.Buffer, format, msg...)
+		buf.WriteByte(whitespace)
+		fmt.Fprintf(buf, format, msg...)
 	}
-	l.Buffer.WriteByte('\n')
+	buf.WriteByte('\n')
 
 	if level == Lstack {
 		stack := make([]byte, 4096)
 		runtime.Stack(stack, true)
-		l.Buffer.Write(stack)
-		l.Buffer.WriteByte('\n')
-	}
-
-	l.Buffer.Flush()
-	l.count[level]++
-
-	if level == Lfatal {
-		os.Exit(127)
+		buf.Write(stack)
+		buf.WriteByte('\n')
 	}
 }
 
-func writeValue(v interface{}, l *Logger) {
+func writeValue(buf *bytes.Buffer, v interface{}) {
 	if v == nil {
-		l.Buffer.WriteString("nil")
+		buf.WriteString("nil")
 		return
 	}
 
 	switch vv := v.(type) {
 	case error:
-		l.Buffer.WriteString(vv.Error())
+		buf.WriteString(vv.Error())
 	case []byte:
-		l.Buffer.Write(vv)
+		buf.Write(vv)
 	case string:
-		l.Buffer.WriteString(vv)
+		buf.WriteString(vv)
 	case int:
-		l.Buffer.WriteString(strconv.Itoa(vv))
+		buf.WriteString(strconv.Itoa(vv))
 	case int8:
-		l.Buffer.WriteString(strconv.FormatInt(int64(vv), 10))
+		buf.WriteString(strconv.FormatInt(int64(vv), 10))
 	case int16:
-		l.Buffer.WriteString(strconv.FormatInt(int64(vv), 10))
+		buf.WriteString(strconv.FormatInt(int64(vv), 10))
 	case int32:
-		l.Buffer.WriteString(strconv.FormatInt(int64(vv), 10))
+		buf.WriteString(strconv.FormatInt(int64(vv), 10))
 	case int64:
-		l.Buffer.WriteString(strconv.FormatInt(vv, 10))
+		buf.WriteString(strconv.FormatInt(vv, 10))
 	case uint:
-		l.Buffer.WriteString(strconv.FormatUint(uint64(vv), 10))
+		buf.WriteString(strconv.FormatUint(uint64(vv), 10))
 	case uint8:
-		l.Buffer.WriteString(strconv.FormatUint(uint64(vv), 10))
+		buf.WriteString(strconv.FormatUint(uint64(vv), 10))
 	case uint16:
-		l.Buffer.WriteString(strconv.FormatUint(uint64(vv), 10))
+		buf.WriteString(strconv.FormatUint(uint64(vv), 10))
 	case uint32:
-		l.Buffer.WriteString(strconv.FormatUint(uint64(vv), 10))
+		buf.WriteString(strconv.FormatUint(uint64(vv), 10))
 	case uint64:
-		l.Buffer.WriteString(strconv.FormatUint(vv, 10))
+		buf.WriteString(strconv.FormatUint(vv, 10))
 	case bool:
-		l.Buffer.WriteString(strconv.FormatBool(vv))
+		buf.WriteString(strconv.FormatBool(vv))
 	case float32:
-		l.Buffer.WriteString(strconv.FormatFloat(float64(vv), 'g', 3, 64))
+		buf.WriteString(strconv.FormatFloat(float64(vv), 'g', 3, 64))
 	case float64:
-		l.Buffer.WriteString(strconv.FormatFloat(vv, 'g', 3, 64))
+		buf.WriteString(strconv.FormatFloat(vv, 'g', 3, 64))
 	case interface{ String() string }:
-		l.Buffer.WriteString(vv.String())
+		buf.WriteString(vv.String())
 	default:
 		switch reflect.TypeOf(v).Kind() {
 		case reflect.Array, reflect.Map, reflect.Slice, reflect.Struct, reflect.Pointer:
 			if js, err := json.Marshal(v); err != nil {
-				fmt.Fprint(l.Buffer, v)
+				fmt.Fprint(buf, v)
 			} else {
-				l.Buffer.Write(js)
+				buf.Write(js)
 			}
 		default:
-			fmt.Fprint(l.Buffer, v)
+			fmt.Fprint(buf, v)
 		}
 	}
 }
@@ -297,16 +305,21 @@ func getTraceId(ctx context.Context) string {
 	return "-"
 }
 
-func getFileLine() (string, int) {
-	_, path, line, ok := runtime.Caller(3) // expensive
+func getFileLineMethod() (string, int, string) {
+	pc, path, line, ok := runtime.Caller(4) // expensive
 	if ok {
 		if i := strings.LastIndexByte(path, '/'); i > -1 {
 			if j := strings.LastIndexByte(path[:i], '/'); j > -1 {
-				path = path[j+1:]
+				if k := strings.LastIndexByte(path[:j], '/'); k > -1 {
+					path = path[k+1:]
+				} else {
+					path = path[j+1:]
+				}
 			} else {
 				path = path[i+1:]
 			}
 		}
 	}
-	return path, line
+	_, method, _ := strings.Cut(runtime.FuncForPC(pc).Name(), ".")
+	return strings.TrimSuffix(path, ".go"), line, method
 }

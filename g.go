@@ -64,26 +64,32 @@ var defaultLogger = NewLogger(Ldebug, os.Stdout)
 
 var defaultTraceId uint64
 
-func WithTraceId(ctx context.Context) context.Context {
+func WithTraceId(ctx ...context.Context) context.Context {
+	var xctx context.Context
+	if len(ctx) == 0 {
+		xctx = context.Background()
+	} else {
+		xctx = ctx[0]
+	}
 	id := atomic.AddUint64(&defaultTraceId, 1)
-	return context.WithValue(ctx, traceIdKey{}, strconv.FormatUint(id, 10))
+	return context.WithValue(xctx, traceIdKey{}, strconv.FormatUint(id, 36))
 }
 
 func SetTraceId(ctx context.Context, traceId interface{}) context.Context {
 	var s string
-	switch traceId.(type) {
+	switch tid := traceId.(type) {
 	case uint64:
-		s = strconv.FormatUint(traceId.(uint64), 10)
+		s = strconv.FormatUint(tid, 10)
 	case uint32:
-		s = strconv.FormatUint(uint64(traceId.(uint32)), 10)
+		s = strconv.FormatUint(uint64(tid), 10)
 	case int64:
-		s = strconv.FormatInt(traceId.(int64), 10)
+		s = strconv.FormatInt(tid, 10)
 	case int:
-		s = strconv.Itoa(traceId.(int))
+		s = strconv.Itoa(tid)
 	case int32:
-		s = strconv.FormatInt(int64(traceId.(int32)), 10)
+		s = strconv.FormatInt(int64(tid), 10)
 	case string:
-		s = traceId.(string)
+		s = tid
 	default:
 		s = fmt.Sprint(traceId)
 	}
