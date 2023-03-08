@@ -77,16 +77,16 @@ func (HertzFullLogger) SetOutput(w io.Writer) {
 	defaultLogger.SetOutput(w)
 }
 
-type MyLogger struct {
-	HertzFullLogger
-}
-
 /*
 usage:
 
+type MyLogger struct {
+	g.HertzFullLogger
+}
 func (l MyLogger) SetLevel(level hlog.Level) {
 	l.HertzFullLogger.SetLevel(int(level))
 }
-
-var _ hlog.FullLogger = &MyLogger{}
+func init() {
+	hlog.SetLogger(&MyLogger{})
+}
 */
