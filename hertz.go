@@ -9,7 +9,7 @@ type HertzFullLogger struct{}
 
 func wrapper(ctx context.Context, level Level, format string, v []interface{}) {
 	if defaultLogger.check(ctx, level) {
-		defaultLogger.output(ctx, level, format, v)
+		defaultLogger.output(ctx, level, 6, format, v)
 	}
 }
 func (HertzFullLogger) Trace(v ...interface{})  { wrapper(context.TODO(), Ltrace, "", v) }
@@ -78,15 +78,17 @@ func (HertzFullLogger) SetOutput(w io.Writer) {
 }
 
 /*
-usage:
 
 type MyLogger struct {
 	g.HertzFullLogger
 }
+
 func (l MyLogger) SetLevel(level hlog.Level) {
 	l.HertzFullLogger.SetLevel(int(level))
 }
+
 func init() {
 	hlog.SetLogger(&MyLogger{})
 }
+
 */

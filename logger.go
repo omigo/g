@@ -48,7 +48,7 @@ func (l *Logger) GetCountAll() [LevelLength]uint64 {
 func logout(logger *Logger, level Level) func(ctx context.Context, msg ...interface{}) {
 	return func(ctx context.Context, msg ...interface{}) {
 		if logger.check(ctx, level) {
-			logger.output(ctx, level, "", msg)
+			logger.output(ctx, level, 4, "", msg)
 		}
 	}
 }
@@ -56,7 +56,7 @@ func logout(logger *Logger, level Level) func(ctx context.Context, msg ...interf
 func logoutf(logger *Logger, level Level) func(ctx context.Context, format string, msg ...interface{}) {
 	return func(ctx context.Context, format string, msg ...interface{}) {
 		if logger.check(ctx, level) {
-			logger.output(ctx, level, format, msg)
+			logger.output(ctx, level, 4, format, msg)
 		}
 	}
 }
@@ -64,21 +64,21 @@ func logoutf(logger *Logger, level Level) func(ctx context.Context, format strin
 func cost(logger *Logger, level Level) func(ctx context.Context, msg ...interface{}) func() {
 	return func(ctx context.Context, msg ...interface{}) func() {
 		s := append(msg, "start...")
-		logger.output(ctx, level, "", s)
+		logger.output(ctx, level, 4, "", s)
 		start := time.Now()
 		return func() {
 			e := append(msg, "cost", time.Since(start).Truncate(time.Millisecond).String())
-			logger.output(ctx, level, "", e)
+			logger.output(ctx, level, 4, "", e)
 		}
 	}
 }
 
 func costf(logger *Logger, level Level) func(ctx context.Context, format string, msg ...interface{}) func() {
 	return func(ctx context.Context, format string, msg ...interface{}) func() {
-		logger.output(ctx, level, format+" start...", msg)
+		logger.output(ctx, level, 4, format+" start...", msg)
 		start := time.Now()
 		return func() {
-			logger.output(ctx, level, format+" cost "+time.Since(start).Truncate(time.Millisecond).String(), msg)
+			logger.output(ctx, level, 4, format+" cost "+time.Since(start).Truncate(time.Millisecond).String(), msg)
 		}
 	}
 }
@@ -166,9 +166,9 @@ func (l *Logger) check(ctx context.Context, level Level) bool {
 	return l.Level >= level
 }
 
-func (l *Logger) output(ctx context.Context, level Level, format string, msg []interface{}) {
+func (l *Logger) output(ctx context.Context, level Level, skip int, format string, msg []interface{}) {
 	buf := bytes.NewBuffer(make([]byte, 1024))
-	write(ctx, buf, level, format, msg)
+	write(ctx, buf, level, skip, format, msg)
 
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
@@ -189,7 +189,7 @@ const (
 	rightBracket = ']'
 )
 
-func write(ctx context.Context, buf *bytes.Buffer, level Level, format string, msg []interface{}) {
+func write(ctx context.Context, buf *bytes.Buffer, level Level, skip int, format string, msg []interface{}) {
 	ts := time.Now().Format("2006-01-02 15:04:05.000")
 	buf.WriteByte(leftBracket)
 	buf.WriteString(ts[:19])
@@ -199,13 +199,13 @@ func write(ctx context.Context, buf *bytes.Buffer, level Level, format string, m
 
 	buf.WriteByte(whitespace)
 
-	file, line, method := getFileLineMethod()
+	file, line, method := getFileLineMethod(skip)
 	buf.WriteByte(leftBracket)
 	buf.WriteString(file)
 	buf.WriteByte(':')
-	buf.WriteString(method)
-	buf.WriteByte(':')
 	buf.WriteString(strconv.Itoa(line))
+	buf.WriteByte(':')
+	buf.WriteString(method)
 	buf.WriteByte(rightBracket)
 
 	buf.WriteByte(whitespace)
@@ -305,8 +305,8 @@ func getTraceId(ctx context.Context) string {
 	return "-"
 }
 
-func getFileLineMethod() (string, int, string) {
-	pc, path, line, ok := runtime.Caller(4) // expensive
+func getFileLineMethod(skip int) (string, int, string) {
+	pc, path, line, ok := runtime.Caller(skip) // expensive
 	if ok {
 		if i := strings.LastIndexByte(path, '/'); i > -1 {
 			if j := strings.LastIndexByte(path[:i], '/'); j > -1 {
@@ -320,6 +320,9 @@ func getFileLineMethod() (string, int, string) {
 			}
 		}
 	}
-	_, method, _ := strings.Cut(runtime.FuncForPC(pc).Name(), ".")
+	method := runtime.FuncForPC(pc).Name()
+	if i := strings.LastIndex(method, "."); i > -1 {
+		method = method[i+1:]
+	}
 	return strings.TrimSuffix(path, ".go"), line, method
 }
