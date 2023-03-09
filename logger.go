@@ -167,7 +167,7 @@ func (l *Logger) check(ctx context.Context, level Level) bool {
 }
 
 func (l *Logger) output(ctx context.Context, level Level, skip int, format string, msg []interface{}) {
-	buf := bytes.NewBuffer(make([]byte, 1024))
+	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	write(ctx, buf, level, skip, format, msg)
 
 	l.mutex.Lock()
