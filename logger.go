@@ -324,5 +324,5 @@ func getFileLineMethod(skip int) (string, int, string) {
 	if i := strings.LastIndex(method, "."); i > -1 {
 		method = method[i+1:]
 	}
-	return strings.TrimSuffix(path, ".go"), line, method
+	return path, line, method
 }
