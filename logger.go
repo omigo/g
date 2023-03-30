@@ -252,7 +252,7 @@ func writeValue(buf *bytes.Buffer, v interface{}) {
 	case []byte:
 		buf.Write(vv)
 	case string:
-		buf.WriteString(vv)
+		buf.WriteString(strings.ReplaceAll(vv, "\n", " "))
 	case int:
 		buf.WriteString(strconv.Itoa(vv))
 	case int8:
