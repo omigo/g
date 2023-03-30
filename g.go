@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"sync/atomic"
+	"time"
 )
 
 type Level int
@@ -62,7 +63,7 @@ var (
 
 var defaultLogger = NewLogger(Ldebug, os.Stdout)
 
-var defaultTraceId uint64
+var defaultTraceId uint64 = uint64(time.Now().Nanosecond() % 1000000)
 
 func WithTraceId(ctx ...context.Context) context.Context {
 	var xctx context.Context
@@ -72,7 +73,7 @@ func WithTraceId(ctx ...context.Context) context.Context {
 		xctx = ctx[0]
 	}
 	id := atomic.AddUint64(&defaultTraceId, 1)
-	return context.WithValue(xctx, traceIdKey{}, strconv.FormatUint(id, 36))
+	return context.WithValue(xctx, traceIdKey{}, strconv.FormatUint(id, 10))
 }
 
 func SetTraceId(ctx context.Context, traceId interface{}) context.Context {
