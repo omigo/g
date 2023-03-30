@@ -203,9 +203,9 @@ func write(ctx context.Context, buf *bytes.Buffer, level Level, skip int, format
 	buf.WriteByte(leftBracket)
 	buf.WriteString(file)
 	buf.WriteByte(':')
-	buf.WriteString(strconv.Itoa(line))
-	buf.WriteByte(':')
 	buf.WriteString(method)
+	buf.WriteByte(':')
+	buf.WriteString(strconv.Itoa(line))
 	buf.WriteByte(rightBracket)
 
 	buf.WriteByte(whitespace)
