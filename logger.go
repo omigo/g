@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -189,7 +190,19 @@ const (
 	rightBracket = ']'
 )
 
-func write(ctx context.Context, buf *bytes.Buffer, level Level, skip int, format string, msg []interface{}) {
+var write func(ctx context.Context, buf *bytes.Buffer, level Level, skip int, format string, msg []interface{})
+
+func init() {
+	env := os.Getenv("ENVIRONMENT")
+	switch env {
+	case "dev", "develop", "development":
+		write = writeDevelop
+	default:
+		write = writeOther
+	}
+}
+
+func writeOther(ctx context.Context, buf *bytes.Buffer, level Level, skip int, format string, msg []interface{}) {
 	ts := time.Now().Format("2006-01-02 15:04:05.000")
 	buf.WriteByte(leftBracket)
 	buf.WriteString(ts[:19])
@@ -240,6 +253,48 @@ func write(ctx context.Context, buf *bytes.Buffer, level Level, skip int, format
 	}
 }
 
+func writeDevelop(ctx context.Context, buf *bytes.Buffer, level Level, skip int, format string, msg []interface{}) {
+	ts := time.Now().Format("2006-01-02 15:04:05.000")
+	buf.WriteString(ts)
+	buf.WriteByte(whitespace)
+
+	traceId := getTraceId(ctx)
+	buf.WriteString(traceId)
+	buf.WriteByte(whitespace)
+
+	buf.WriteString(level.String())
+	buf.WriteByte(whitespace)
+
+	file, line, method := getFileLineMethod(skip)
+	buf.WriteString(file)
+	buf.WriteByte(':')
+	buf.WriteString(strconv.Itoa(line))
+	buf.WriteByte(whitespace)
+
+	buf.WriteString(method)
+	buf.WriteByte(whitespace)
+
+	if format == "" {
+		for _, v := range msg {
+			buf.WriteByte(whitespace)
+			writeValue(buf, v)
+		}
+	} else {
+		buf.WriteByte(whitespace)
+		fmt.Fprintf(buf, format, msg...)
+	}
+	buf.WriteByte('\n')
+
+	if level == Lstack {
+		stack := make([]byte, 4096)
+		runtime.Stack(stack, true)
+		buf.Write(stack)
+		buf.WriteByte('\n')
+	}
+}
+
+var lineSpaces = regexp.MustCompile(`\s*\n\s*`)
+
 func writeValue(buf *bytes.Buffer, v interface{}) {
 	if v == nil {
 		buf.WriteString("nil")
@@ -252,7 +307,7 @@ func writeValue(buf *bytes.Buffer, v interface{}) {
 	case []byte:
 		buf.Write(vv)
 	case string:
-		buf.WriteString(strings.ReplaceAll(vv, "\n", " "))
+		buf.WriteString(lineSpaces.ReplaceAllString(vv, " "))
 	case int:
 		buf.WriteString(strconv.Itoa(vv))
 	case int8:
