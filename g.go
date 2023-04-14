@@ -71,6 +71,9 @@ func WithTraceId(ctx ...context.Context) context.Context {
 		xctx = context.Background()
 	} else {
 		xctx = ctx[0]
+		if _, ok := xctx.Value(traceIdKey{}).(string); ok {
+			return xctx
+		}
 	}
 	id := atomic.AddUint64(&defaultTraceId, 1)
 	return context.WithValue(xctx, traceIdKey{}, strconv.FormatUint(id, 10))
