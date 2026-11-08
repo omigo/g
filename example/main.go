@@ -14,10 +14,10 @@ type TestStruct struct {
 }
 
 func main() {
-	g.SetLevelString("info")
+	g.SetLevelString("trace")
 
 	ctx := context.Background()
-	ctx = g.WithTraceId(ctx, 123131231)
+	ctx = g.WithTraceId(ctx)
 
 	g.Trace(ctx, g.GetLevel())
 
@@ -34,14 +34,18 @@ func main() {
 
 	// if matched, set level debug
 	ctx = g.WithLevel(ctx, g.Ldebug)
+	ctx = g.SetTraceId(ctx, 3)
 
 	method1(ctx)
-	g.Infof(ctx, "%d", g.GetCountAll())
+	g.Infof(ctx, "%v", g.GetCountAll())
+
+	// Fatal 默认会 os.Exit(99)；这里演示替换退出行为，让示例可以正常结束。
+	g.SetExit(nil)
 	g.Fatal(ctx, 3)
 }
 
 func method1(ctx context.Context) {
-	defer g.Cost(ctx, "method1", "another")()
+	defer g.Cost(ctx, "method1", "enable test")()
 	g.Trace(ctx, 1)
 	g.Debug(ctx, 1)
 	if g.IsEnabled(ctx, g.Linfo) {
@@ -51,7 +55,7 @@ func method1(ctx context.Context) {
 }
 
 func method2(ctx context.Context) {
-	defer g.Costf(ctx, "method%d", 2)()
+	defer g.Costf(ctx, "method%d %s", 2, "stack test")()
 	g.Trace(ctx, 2)
 	g.Debug(ctx, 2)
 	g.Info(ctx, 2)
